@@ -1,6 +1,6 @@
 # POC for Failover Cloudfront distribution 
 
-    
+​    
 
 ## Summary
 
@@ -18,7 +18,7 @@ Most of the time, people would like to seek for regional redundant mechanism to 
 
 ### Architecture
 
-![Screen Shot 2021-07-13 at 10.43.23 AM](/Users/yikaikao/git/poc-failover-cdn/images/architecture.png)
+![Screen Shot 2021-07-13 at 10.43.23 AM](./images/architecture.png)
 
 
 
