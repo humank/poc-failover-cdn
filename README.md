@@ -61,7 +61,55 @@ When working on these network traffic, do need to make sure the request header m
 
 How can we resolve this issue? A traditional approach is to add the "host" header in runtime, or on CloudFront. But CloudFront service doesn't allow to add host header directly. We could only leverage Lambda@Edge to override the request header in runtime. Here are the instruction guidances.
 
+#### Lambda Function
 
+First, create a lambda function in destination region for deploying to edge.
+
+Function name : rewriteHostForMyDemo, Runtime : Node.js 14.x
+
+```node.js
+exports.handler =  (event, context, callback) => {
+    // TODO implement
+    console.log("ENVIRONMENT VARIABLES\n" + JSON.stringify(process.env, null, 2))
+    console.info("EVENT\n" + JSON.stringify(event, null, 2))
+    console.warn("Event not processed.")
+    const request = event.Records[0].cf.request;
+    request.headers.host[0].value = 'cdn1.kimkao.io';
+    return callback(null, request);
+    
+};
+
+```
+
+
+
+Assign an IAM role for the lambda function, there will need to have 2 service trust relationships to assume role in edge.
+
+for example, my IAM role : Lambdarole. Edit Trust Relationship.
+
+```
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "edgelambda.amazonaws.com",
+          "lambda.amazonaws.com"
+        ]
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+```
+
+Deploy to desired region, take the ARN for further integration.
+
+```
+ARN : arn:aws:lambda:us-east-1:<xxxxxxxxxxxx>:function:rewriteHostForMyDemo:3
+```
 
 
 
@@ -108,8 +156,6 @@ Rogin request : Function type as Lambda@Edge, Function ARN/ Name as you deployed
 
 
 
-
-
 #### CDN distribution -2
 
 You could create the second distribution as first distribution steps, but don't add the alternate domain name **cdnfailover.kimkao.io** at the time.
@@ -126,4 +172,124 @@ Secondary : Cloudfront distribution2 - d2dufh55qr16mi.cloudfront.net
 ```
 
 
+
+## Result
+
+Let's take a test 
+
+#### nslookup to check target domain name is discoverable
+
+```
+❯ nslookup cdnfailover.kimkao.io
+Server:		172.20.10.1
+Address:	172.20.10.1#53
+
+Non-authoritative answer:
+cdnfailover.kimkao.io	canonical name = d3e36777gjas6.cloudfront.net.
+Name:	d3e36777gjas6.cloudfront.net
+Address: 13.35.164.112
+Name:	d3e36777gjas6.cloudfront.net
+Address: 13.35.164.54
+Name:	d3e36777gjas6.cloudfront.net
+Address: 13.35.164.57
+Name:	d3e36777gjas6.cloudfront.net
+Address: 13.35.164.66
+```
+
+#### Send the request to target domain
+
+Check the log we could see the traffic is definitely go through CDN with
+
+**< x-amz-cf-pop: TPE50-C1**, and 
+**< x-amz-cf-id: Hej3fkfUrzSEXfhrhpKiuUggbLG_WIvfZsVHYSQJng8HG2L1WrGzOA==**
+
+The traffic will successfully to hit API Gateway and get response.
+
+```
+❯ curl -v https://cdnfailover.kimkao.io
+*   Trying 2600:9000:20db:dc00:1a:f05e:5580:93a1...
+* TCP_NODELAY set
+* Connected to cdnfailover.kimkao.io (2600:9000:20db:dc00:1a:f05e:5580:93a1) port 443 (#0)
+* ALPN, offering h2
+* ALPN, offering http/1.1
+* successfully set certificate verify locations:
+*   CAfile: /etc/ssl/cert.pem
+  CApath: none
+* TLSv1.2 (OUT), TLS handshake, Client hello (1):
+* TLSv1.2 (IN), TLS handshake, Server hello (2):
+* TLSv1.2 (IN), TLS handshake, Certificate (11):
+* TLSv1.2 (IN), TLS handshake, Server key exchange (12):
+* TLSv1.2 (IN), TLS handshake, Server finished (14):
+* TLSv1.2 (OUT), TLS handshake, Client key exchange (16):
+* TLSv1.2 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.2 (OUT), TLS handshake, Finished (20):
+* TLSv1.2 (IN), TLS change cipher, Change cipher spec (1):
+* TLSv1.2 (IN), TLS handshake, Finished (20):
+* SSL connection using TLSv1.2 / ECDHE-RSA-AES128-GCM-SHA256
+* ALPN, server accepted to use h2
+* Server certificate:
+*  subject: CN=*.kimkao.io
+*  start date: Apr 18 00:00:00 2021 GMT
+*  expire date: May 17 23:59:59 2022 GMT
+*  subjectAltName: host "cdnfailover.kimkao.io" matched cert's "*.kimkao.io"
+*  issuer: C=US; O=Amazon; OU=Server CA 1B; CN=Amazon
+*  SSL certificate verify ok.
+* Using HTTP2, server supports multi-use
+* Connection state changed (HTTP/2 confirmed)
+* Copying HTTP/2 data in stream buffer to connection buffer after upgrade: len=0
+* Using Stream ID: 1 (easy handle 0x7f82dd00f800)
+> GET / HTTP/2
+> Host: cdnfailover.kimkao.io
+> User-Agent: curl/7.64.1
+> Accept: */*
+>
+* Connection state changed (MAX_CONCURRENT_STREAMS == 128)!
+< HTTP/2 200
+< content-type: text/html
+< content-length: 3009
+< vary: Accept-Encoding
+< date: Tue, 13 Jul 2021 14:42:48 GMT
+< server: nginx/1.20.0
+< apigw-requestid: CabwbhGJoAMESSg=
+< last-modified: Mon, 05 Jul 2021 06:09:47 GMT
+< etag: "60e2a22b-bc1"
+< accept-ranges: bytes
+< x-cache: Miss from cloudfront
+< via: 1.1 9f6f98693a92fb28f50ee1be22989de3.cloudfront.net (CloudFront)
+< x-amz-cf-pop: TPE50-C1
+< x-amz-cf-id: Hej3fkfUrzSEXfhrhpKiuUggbLG_WIvfZsVHYSQJng8HG2L1WrGzOA==
+<
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+
+.... html body ignore ...
+```
+
+
+
+By doing so, we had done for
+
+* Deal with TLS host mismatch issue by adding **cdnfailover.kimkao.io** in CDN-1 distribution alternate domain name
+* Successfully to proxy requests to backend server through API Gateway HTTP API private integration
+
+
+
+However, once trying to add the **cdnfailover.kimkao.io** to the second CDN distribution will encountered an error - 
+
+
+
+![Screen Shot 2021-07-13 at 10.48.40 PM](/Users/yikaikao/git/poc-failover-cdn/images/adding-2nd-cdn.png)
+
+
+
+![Screen Shot 2021-07-13 at 10.49.13 PM](/Users/yikaikao/git/poc-failover-cdn/images/alternate-error.png)
+
+
+
+**The adding alternate domain name error is due to the service limit, that the alternate domain name binding to regional Cloudfront distribution is regional unique. It's similar to API Gateway design concept. So there is no opportunity to leverage 2 CDN distribution to achieve 1 region HA goal so far.**
+
+
+
+**Based on current architecture, we do suggest to have corss region DR, or make a few change on the as-is architecture to have another communication mechanism to proxy requests in seperate requests chain.**
 
