@@ -279,11 +279,11 @@ However, once trying to add the **cdnfailover.kimkao.io** to the second CDN dist
 
 
 
-![Screen Shot 2021-07-13 at 10.48.40 PM](/Users/yikaikao/git/poc-failover-cdn/images/adding-2nd-cdn.png)
+![Screen Shot 2021-07-13 at 10.48.40 PM](./images/adding-2nd-cdn.png)
 
 
 
-![Screen Shot 2021-07-13 at 10.49.13 PM](/Users/yikaikao/git/poc-failover-cdn/images/alternate-error.png)
+![Screen Shot 2021-07-13 at 10.49.13 PM](./images/alternate-error.png)
 
 
 
