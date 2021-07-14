@@ -4,7 +4,7 @@
 
 ## Summary
 
-The POC result is - Currently (2021) , AWS Cloudfront doesn't support for **multiple origin distribution for the same domain name**, due to it is global unique constraint. So to have 2 cloudfront distribution to serve as a failover CDN for specific domain is not workable.
+The POC result is - Currently (2021) , AWS Cloudfront doesn't support for **multiple origin distribution for the same domain name**, due to it is regional unique constraint. So to have 2 cloudfront distribution to serve as a failover CDN for specific domain is not workable.
 
 
 
