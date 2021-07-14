@@ -26,7 +26,7 @@ Let's take a look on the service discovery chain and how the traffic will be.
 
 The theme is - 
 
-**when client user send a request to https://cdnfailover.kimkao.io, then the Route 53 service resolve the domain name as it has been registered with failover routing policy in Route 53. So the dns revolver will be get cdn1.kimkao.io back since it's the primary domain name.** The traffic will go over cdn1 --> api --> private integration with vpc resources.
+**when client user send a request to https://cdnfailover.kimkao.io, then the Route 53 service resolve the domain name as it has been registered with failover routing policy in Route 53. So the dns resolver will  get cdn1.kimkao.io back since it's the primary domain name.** The traffic will go over cdn1 --> api --> private integration with vpc resources.
 
 
 
